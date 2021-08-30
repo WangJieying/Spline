@@ -1,0 +1,1 @@
+Note that all files inside this file are deleted in this repository since they are really huge. But you can totally download them from https://www.geometrictools.com/Downloads/Downloads.html (GTEngine 5.8 Distribution (ZIP))
