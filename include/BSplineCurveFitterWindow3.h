@@ -24,7 +24,10 @@ public:
     //virtual bool OnCharPress(unsigned char key, int x, int y) override;
     int SplineFit(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, vector<int *> connection_);
     void SplineFit2(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, vector<int *> connection_, int sign);
+    void indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index);
+
     void SplineGenerate(int SuperR);
+    void ReadIndexingSpline();
 private:
     
     void CreateBSplinePolyline(vector<Vector3<float>> Sample);

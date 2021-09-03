@@ -96,8 +96,7 @@ void BSplineCurveFitterWindow3::SplineFit2(vector<vector<Vector3<float>>> Branch
     if (mergeOrNot) { Merge();}
 
     OutFile1.open("controlPoints.txt",ios_base::app);
-    if (layerNum == 255) OutFile1<<254<<endl; // avoid conflict to the final end tag.
-    else OutFile1<<layerNum<<endl;
+    OutFile1<<layerNum<<endl;
 
     //if(sign==1) OutFile1<<1<<endl; //for adaptive method.
     //else OutFile1<<0<<endl;
@@ -111,6 +110,27 @@ void BSplineCurveFitterWindow3::SplineFit2(vector<vector<Vector3<float>>> Branch
     OutFile1.close(); 
 }
 
+void BSplineCurveFitterWindow3::indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index)
+{
+    sampleSet = BranchSet;
+    minErrorThreshold = hausdorff_;
+    diagonal = diagonal_;
+    
+
+    OutFile1.open("controlPoints.txt",ios_base::app);
+    OutFile1<<layerNum<<" "<<index<<endl;
+
+    //if(sign==1) OutFile1<<1<<endl; //for adaptive method.
+    //else OutFile1<<0<<endl;
+    //cout<<"sampleSet.size(): "<<sampleSet.size()<<endl;
+    for (unsigned int i = 0; i < sampleSet.size();i++)
+    {
+        if (sampleSet[i].size()>3) 
+            CreateBSplinePolyline(sampleSet[i]);
+    }
+    OutFile1<<0<<endl;  //end sign for one layer.  
+    OutFile1.close(); 
+}
 
 void BSplineCurveFitterWindow3::SplineGenerate(int SuperR)
 {
@@ -128,14 +148,16 @@ void BSplineCurveFitterWindow3::SplineGenerate(int SuperR)
     OutFile << (int)atof(str.c_str()) <<" ";//width
     ifs1 >> str;
     OutFile << (int)atof(str.c_str()) <<endl;//height
-    //std::cout<<" diagonal:   "<<diagonal<<endl;
+    ifs1 >> str;
+    OutFile << (int)atof(str.c_str()) <<endl;//clear_color
+    
     while(ifs1)
     { 
         ifs1 >> str;
         layerNum = (int)atof(str.c_str());
         if(ifs1.fail())  break;
 
-        if(layerNum == 255)
+        if(layerNum == 65536)
         {
             OutFile << 65536 <<endl;//final end tag.
             ifs1 >> str;
@@ -180,6 +202,86 @@ void BSplineCurveFitterWindow3::SplineGenerate(int SuperR)
         OutFile << 65535 <<endl;//end tag for each layer.
     }
   
+    OutFile.close();
+    ifs1.close();
+
+}
+
+
+void BSplineCurveFitterWindow3::ReadIndexingSpline()
+{
+    int layerNum, index;
+    int CPnum,degree;
+    unsigned int numSamples;
+    string str;
+    float controlData;
+    OutFile.open("sample.txt");
+
+    vector<float> mControlData;
+
+    ifstream ifs1("controlPoints.txt"); 
+    ifs1 >> str;
+    OutFile << (int)atof(str.c_str()) <<" ";//width
+    ifs1 >> str;
+    OutFile << (int)atof(str.c_str()) <<endl;//height
+    ifs1 >> str;
+    OutFile << (int)atof(str.c_str()) <<endl;//clear_color
+    
+    while(ifs1)
+    { 
+        ifs1 >> str;
+        layerNum = (int)atof(str.c_str());
+        if(ifs1.fail())  break;
+        ifs1 >> str;
+        index = (int)atof(str.c_str());
+        if(ifs1.fail())  break;
+        /*
+        if(layerNum == 65536)
+        {
+            OutFile << 65536 <<endl;//final end tag.
+            ifs1 >> str;
+            layerNum = (int)atof(str.c_str());
+            if(ifs1.fail())  break;
+            if(layerNum == 255) {OutFile << 65536 <<endl; break;}
+        }*/
+
+        OutFile << layerNum <<" "<<index<<endl;
+        //ifs1 >> str;//read the adaptive sign
+        while (true)
+        {
+            ifs1 >> str;
+            CPnum = (int)atof(str.c_str());
+            if(CPnum == 0) break;
+
+            ifs1 >> str;
+            degree = (int)atof(str.c_str());
+            ifs1 >> str;
+            numSamples = (unsigned int)atof(str.c_str());
+        
+            
+            for (int i = 0; i< CPnum; ++i)
+            {
+                for (int j = 0; j < mDimension; ++j)
+                {
+                    ifs1 >> str;
+                    controlData = atof(str.c_str())/diagonal;
+                    controlDataVec[i][j] = controlData;
+                    mControlData.push_back(controlData); 
+                }
+            }
+                
+            totalSample += numSamples;
+            SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
+            //cout<<"mControlData.size(): "<<mControlData.size()/3<<" count: "<<count1<<endl;
+        
+            controlDataVec.resize(CPnum);
+            CreateGraphics(numSamples, 1);
+            mControlData.clear(); 
+        }
+        OutFile << 65535 <<endl;//end tag for each layer.
+    }
+  
+    OutFile << 65536 <<endl;//final end tag.
     OutFile.close();
     ifs1.close();
 
