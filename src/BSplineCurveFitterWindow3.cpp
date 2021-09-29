@@ -17,59 +17,33 @@
  
 using namespace std;
 #define mDimension 3
-#define colorNum 10000
-
-int color[colorNum][3];//wang
  
-int num = 0, CPNum = 0, cntlSepNum=0,  orignum=0;//how many parts you should draw
-std::shared_ptr<Visual> OrigCurve[10000];//if we put this in .h file, it would cause the error of "corrupted size vs. prev_size". I donot know why.
-std::shared_ptr<Visual> drawSpline[10000];//give enough space first
-std::shared_ptr<Visual> drawControlPoint[1000];
-std::shared_ptr<Visual> drawControlPointl[10000];
-float maxhaus = 0.0f;
-int maxBranch = 0;
-int totalSample = 0;
-int init = 1;//which branch seq you should start with.
 int TotalControlNum; 
-int DeterminedNumControls, DeterminedDegree, lastNumCntl;
-float minError; bool connect=0;
-vector<Vector3<float>> controlData(10000);
-int countSepCntl = 0;
-float lastx, lasty;
-ofstream OutFile, OutFile1;
+int DeterminedNumControls, DeterminedDegree;
+float minError;
 float minErrorThreshold;
-bool gapfilling;
-//vector<vector<Vector3<float>>> sampleSet(1000);
 float storevector[mDimension]={0,0,0};
-vector<Vector3<float>> controlDataVec(1000);
+vector<vector<vector<Vector3<float>>>> BSplineCurveFitterWindow3::IndexingCP = {{}};
+vector<vector<vector<Vector3<float>>>> BSplineCurveFitterWindow3::IndexingCP_Interactive = {{}};
+
+vector<Vector3<float>> ReadingSampleforEachCC = {{}};
+vector<Vector3<float>> ReadingSampleforEachInty = {{}};
+vector<vector<Vector3<float>>> CPforEachLayer_or_CC = {{}};
+
 unique_ptr<BSplineCurveGenerate<float>> SplineGeneratePtr;
 bool mergeOrNot = false;   
 bool deleteshort = false;
 unsigned int MinAllowableLength = 5;
 float diagonal= 0.0f;
-/*// 
-BSplineCurveFitterWindow3::BSplineCurveFitterWindow3(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_)
-    :
-    sampleSet(BranchSet)
-{
-    minErrorThreshold = hausdorff_;
-    diagonal = diagonal_;
-    cout<<"good-----!!"<<endl;
-    SplineFit();
-    //generateColor();
-    //CreateScene();
-    //InitializeCamera(60.0f, GetAspectRatio(), 0.1f, 100.0f, 0.01f, 0.001f,
-    //    { 0.0f, 0.0f, -4.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
-    //mPVWMatrices.Update();
-}
-*/
+
 BSplineCurveFitterWindow3::BSplineCurveFitterWindow3()
 {
-    //cout<<"good-----"<<endl;
+    //cout<<"BSplineCurveFitterWindow-----"<<endl;
 }
 int BSplineCurveFitterWindow3::SplineFit(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, vector<int *> connection_)
 {
     TotalControlNum = 0;
+    if(!sampleSet.empty()) sampleSet.clear();
     sampleSet = BranchSet;
     minErrorThreshold = hausdorff_;
     diagonal = diagonal_;
@@ -88,220 +62,160 @@ int BSplineCurveFitterWindow3::SplineFit(vector<vector<Vector3<float>>> BranchSe
 
 void BSplineCurveFitterWindow3::SplineFit2(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, vector<int *> connection_, int sign)
 {
+    if(!sampleSet.empty()) sampleSet.clear();
     sampleSet = BranchSet;
     minErrorThreshold = hausdorff_;
     diagonal = diagonal_;
     connection = connection_; 
     
     if (mergeOrNot) { Merge();}
+    if(!CPforEachLayer_or_CC.empty()) CPforEachLayer_or_CC.clear();
 
-    OutFile1.open("controlPoints.txt",ios_base::app);
-    OutFile1<<layerNum<<endl;
-
-    //if(sign==1) OutFile1<<1<<endl; //for adaptive method.
-    //else OutFile1<<0<<endl;
-    //cout<<"sampleSet.size(): "<<sampleSet.size()<<endl;
     for (unsigned int i = 0; i < sampleSet.size();i++)
     {
-        if (sampleSet[i].size()>3) 
+        if (sampleSet[i].size()>3) {
             CreateBSplinePolyline(sampleSet[i]);
+        }
     }
-    OutFile1<<0<<endl;  //end sign for one layer.  
-    OutFile1.close(); 
+    IndexingCP_Interactive.push_back(CPforEachLayer_or_CC);
+    //CPforEachLayer_or_CC.clear();
+    
 }
 
 void BSplineCurveFitterWindow3::indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index)
 {
+    
+    if(!sampleSet.empty()) sampleSet.clear();
     sampleSet = BranchSet;
     minErrorThreshold = hausdorff_;
     diagonal = diagonal_;
     
+    if(!CPforEachLayer_or_CC.empty()) CPforEachLayer_or_CC.clear();
 
-    OutFile1.open("controlPoints.txt",ios_base::app);
-    OutFile1<<layerNum<<" "<<index<<endl;
-
-    //if(sign==1) OutFile1<<1<<endl; //for adaptive method.
-    //else OutFile1<<0<<endl;
-    //cout<<"sampleSet.size(): "<<sampleSet.size()<<endl;
     for (unsigned int i = 0; i < sampleSet.size();i++)
     {
-        if (sampleSet[i].size()>3) 
+        if (sampleSet[i].size()>3){
             CreateBSplinePolyline(sampleSet[i]);
+        } 
+            
     }
-    OutFile1<<0<<endl;  //end sign for one layer.  
-    OutFile1.close(); 
+    IndexingCP.push_back(CPforEachLayer_or_CC);
+    
 }
 
-void BSplineCurveFitterWindow3::SplineGenerate(int SuperR)
+vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::SplineGenerate()
 {
-    int layerNum;
     int CPnum,degree;
     unsigned int numSamples;
-    string str;
-    float controlData;
-    OutFile.open("sample.txt");
-
     vector<float> mControlData;
 
-    ifstream ifs1("controlPoints.txt"); 
-    ifs1 >> str;
-    OutFile << (int)atof(str.c_str()) <<" ";//width
-    ifs1 >> str;
-    OutFile << (int)atof(str.c_str()) <<endl;//height
-    ifs1 >> str;
-    OutFile << (int)atof(str.c_str()) <<endl;//clear_color
+    vector<vector<Vector3<float>>> ReadingCPforEachInty, ReadingSampleforAllInty;
+    vector<Vector3<float>> ReadingCPforEachBranch;
+    Vector3<float> ReadingEachCP;
     
-    while(ifs1)
-    { 
-        ifs1 >> str;
-        layerNum = (int)atof(str.c_str());
-        if(ifs1.fail())  break;
-
-        if(layerNum == 65536)
-        {
-            OutFile << 65536 <<endl;//final end tag.
-            ifs1 >> str;
-            layerNum = (int)atof(str.c_str());
-            if(ifs1.fail())  break;
-            if(layerNum == 255) {OutFile << 65536 <<endl; break;}
-        }
-
-        OutFile << layerNum <<endl;
-        //ifs1 >> str;//read the adaptive sign
-        while (true)
-        {
-            ifs1 >> str;
-            CPnum = (int)atof(str.c_str());
-            if(CPnum == 0) break;
-
-            ifs1 >> str;
-            degree = (int)atof(str.c_str());
-            ifs1 >> str;
-            numSamples = (unsigned int)atof(str.c_str());
-        
-            
-            for (int i = 0; i< CPnum; ++i)
-            {
-                for (int j = 0; j < mDimension; ++j)
-                {
-                    ifs1 >> str;
-                    controlData = atof(str.c_str())/diagonal;
-                    controlDataVec[i][j] = controlData;
-                    mControlData.push_back(controlData); 
+    for(auto it = IndexingCP_Interactive.begin();it!=IndexingCP_Interactive.end();it++){
+        ReadingCPforEachInty = *it;
+        //cout<<"ReadingCPforEachInty size "<<ReadingCPforEachInty.size()<<endl;
+        for(auto it_ = ReadingCPforEachInty.begin();it_!=ReadingCPforEachInty.end();it_++){
+            ReadingCPforEachBranch = *it_;
+            bool first = true;
+            for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
+                ReadingEachCP = *it_branch;
+                if(first){
+                    first = false;
+                    CPnum = ReadingEachCP[0];
+                    degree = ReadingEachCP[1];
+                    numSamples = ReadingEachCP[2];
+                }
+                else{
+                    for (int j = 0; j < mDimension; ++j)
+                    {
+                        mControlData.push_back(ReadingEachCP[j]/diagonal);
+                    }
                 }
             }
-                
-            totalSample += numSamples;
+            //cout<<endl;
             SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
-            //cout<<"mControlData.size(): "<<mControlData.size()/3<<" count: "<<count1<<endl;
-        
-            controlDataVec.resize(CPnum);
-            CreateGraphics(numSamples, SuperR);
+            
+            CreateGraphics(numSamples, 0);
             mControlData.clear(); 
-        }
-        OutFile << 65535 <<endl;//end tag for each layer.
-    }
-  
-    OutFile.close();
-    ifs1.close();
 
+        }
+        ReadingSampleforAllInty.push_back(ReadingSampleforEachInty);
+        ReadingSampleforEachInty.clear();
+    }
+    return ReadingSampleforAllInty;   
 }
 
-
-void BSplineCurveFitterWindow3::ReadIndexingSpline()
+vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::ReadIndexingSpline()
 {
-    int layerNum, index;
     int CPnum,degree;
     unsigned int numSamples;
-    string str;
-    float controlData;
-    OutFile.open("sample.txt");
-
+    //OutFile.open("sample.txt");
     vector<float> mControlData;
 
-    ifstream ifs1("controlPoints.txt"); 
-    ifs1 >> str;
-    OutFile << (int)atof(str.c_str()) <<" ";//width
-    ifs1 >> str;
-    OutFile << (int)atof(str.c_str()) <<endl;//height
-    ifs1 >> str;
-    OutFile << (int)atof(str.c_str()) <<endl;//clear_color
+    vector<vector<Vector3<float>>> ReadingCPforEachCC, ReadingSampleforAllCC;
+    vector<Vector3<float>> ReadingCPforEachBranch;
+    Vector3<float> ReadingEachCP;
     
-    while(ifs1)
-    { 
-        ifs1 >> str;
-        layerNum = (int)atof(str.c_str());
-        if(ifs1.fail())  break;
-        ifs1 >> str;
-        index = (int)atof(str.c_str());
-        if(ifs1.fail())  break;
-        /*
-        if(layerNum == 65536)
-        {
-            OutFile << 65536 <<endl;//final end tag.
-            ifs1 >> str;
-            layerNum = (int)atof(str.c_str());
-            if(ifs1.fail())  break;
-            if(layerNum == 255) {OutFile << 65536 <<endl; break;}
-        }*/
+    for(auto it = IndexingCP.begin();it!=IndexingCP.end();it++){
+        ReadingCPforEachCC = *it;
+        for(auto it_ = ReadingCPforEachCC.begin();it_!=ReadingCPforEachCC.end();it_++){
+            ReadingCPforEachBranch = *it_;
+            bool first = true;
+            for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
+                ReadingEachCP = *it_branch;
+                if(first){
+                    first = false;
+                    CPnum = ReadingEachCP[0];
+                    degree = ReadingEachCP[1];
+                    numSamples = ReadingEachCP[2];
+                }
+                else{
+                    for (int j = 0; j < mDimension; ++j)
+                    {
+                        mControlData.push_back(ReadingEachCP[j]/diagonal);
+                    }
 
-        OutFile << layerNum <<" "<<index<<endl;
-        //ifs1 >> str;//read the adaptive sign
-        while (true)
-        {
-            ifs1 >> str;
-            CPnum = (int)atof(str.c_str());
-            if(CPnum == 0) break;
-
-            ifs1 >> str;
-            degree = (int)atof(str.c_str());
-            ifs1 >> str;
-            numSamples = (unsigned int)atof(str.c_str());
-        
-            
-            for (int i = 0; i< CPnum; ++i)
-            {
-                for (int j = 0; j < mDimension; ++j)
-                {
-                    ifs1 >> str;
-                    controlData = atof(str.c_str())/diagonal;
-                    controlDataVec[i][j] = controlData;
-                    mControlData.push_back(controlData); 
                 }
             }
-                
-            totalSample += numSamples;
             SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
-            //cout<<"mControlData.size(): "<<mControlData.size()/3<<" count: "<<count1<<endl;
-        
-            controlDataVec.resize(CPnum);
+           
             CreateGraphics(numSamples, 1);
             mControlData.clear(); 
-        }
-        OutFile << 65535 <<endl;//end tag for each layer.
-    }
-  
-    OutFile << 65536 <<endl;//final end tag.
-    OutFile.close();
-    ifs1.close();
 
+        }
+        //OutFile << 65535 <<endl;
+        ReadingSampleforAllCC.push_back(ReadingSampleforEachCC);
+        ReadingSampleforEachCC.clear();
+    }
+    return ReadingSampleforAllCC;        
+    
 }
 
 
-void BSplineCurveFitterWindow3::CreateGraphics(unsigned int numSamples, int superR)
+void BSplineCurveFitterWindow3::CreateGraphics(unsigned int numSamples, int which)
 {
     
-    unsigned int numSplineSample = (unsigned int)(numSamples*superR*1.2);//sub-pixel.
+    unsigned int numSplineSample = (unsigned int)(numSamples*1.1);//sub-pixel.
    // unsigned int numSplineSample = numSamples; //uniform sampling
     float vector[mDimension]={0,0,0};
     float multiplier = 1.0f / (numSplineSample - 1.0f);
+    Vector3<float> EachSample;
 
     for (unsigned int i = 0; i < numSplineSample; ++i)
-    {
+    { 
         float t = multiplier * i;
        
         SplineGeneratePtr->GetPosition(t, reinterpret_cast<float*>(vector));
-        OutFile<<(int)(vector[0]*diagonal)<<" "<<(int)(vector[1]*diagonal)<<" "<<(int)(vector[2]*diagonal)<<endl;      //save to the txt file.
+        //OutFile<<(int)(vector[0]*diagonal)<<" "<<(int)(vector[1]*diagonal)<<" "<<(int)(vector[2]*diagonal)<<endl;      //save to the txt file.
+        
+        for (int j = 0; j < mDimension; ++j)
+            EachSample[j] = (int)(vector[j]*diagonal);
+        
+        if(which) ReadingSampleforEachCC.push_back(EachSample);
+        else ReadingSampleforEachInty.push_back(EachSample);
+        
     }
 }
 
@@ -427,22 +341,31 @@ void BSplineCurveFitterWindow3::CreateBSplinePolyline(vector<Vector3<float>> Sam
         mSpline = std::make_unique<BSplineCurveFit<float>>(mDimension, static_cast<int>(Sample.size()),
             reinterpret_cast<float const*>(&Sample[0]), DeterminedDegree, DeterminedNumControls);
     
-        OutFile1<< DeterminedNumControls <<" "<<DeterminedDegree<<" "; 
-        OutFile1<< Sample.size() <<" ";  
+        //cout<< DeterminedNumControls <<" "<<DeterminedDegree<<" "; 
+        //cout<< Sample.size() <<" "; 
+        vector<Vector3<float>> CPforEachBranch; 
+        Vector3<float> eachTriple;
+        eachTriple[0] = DeterminedNumControls;
+        eachTriple[1] = DeterminedDegree;
+        eachTriple[2] = Sample.size();
+        CPforEachBranch.push_back(eachTriple);
+        
         
         float const* controlDataPtr = mSpline->GetControlData();
         for (int i = 0; i< DeterminedNumControls; ++i)
         {
             for (int j = 0; j < mDimension; ++j)
             {
-                controlData[i][j] = (*controlDataPtr);
-                OutFile1<<(round)(*controlDataPtr*diagonal)<<" ";
-                //mControlData.push_back(*controlDataPtr);
+                //controlData[i][j] = (*controlDataPtr);
+                //cout<<(round)(*controlDataPtr*diagonal)<<" ";
+                eachTriple[j] = (round)(*controlDataPtr*diagonal);
                 controlDataPtr++;
             }
-            
+            CPforEachBranch.push_back(eachTriple);
+        
         }    
-        OutFile1<<endl;
+        //cout<<"CPforEachLayer_or_CC.size "<<CPforEachLayer_or_CC.size()<<endl;
+        CPforEachLayer_or_CC.push_back(CPforEachBranch);
     }
 }
 

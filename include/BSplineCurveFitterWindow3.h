@@ -26,13 +26,16 @@ public:
     void SplineFit2(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, vector<int *> connection_, int sign);
     void indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index);
 
-    void SplineGenerate(int SuperR);
-    void ReadIndexingSpline();
+    vector<vector<Vector3<float>>> SplineGenerate();
+    vector<vector<Vector3<float>>> ReadIndexingSpline();
+    inline void clear_IndexingCP() {if(!IndexingCP.empty()) IndexingCP.clear();}
+    inline void clear_IndexingCP_Interactive() 
+    { if(!IndexingCP_Interactive.empty()) IndexingCP_Interactive.clear(); }
 private:
     
     void CreateBSplinePolyline(vector<Vector3<float>> Sample);
     void CalculateNeededCP(vector<Vector3<float>> Sample);
-    void CreateGraphics(unsigned int numSamples, int superR);
+    void CreateGraphics(unsigned int numSamples, int which);
     float Judge(vector<Vector3<float>> Sample);
 	void Merge();
 /*
@@ -44,8 +47,8 @@ private:
     //void drawSpline();
     void drawControlPoints(Vector3<float> controlPoint);
     void drawControlPointsLine();
-*/
-    enum { NUM_SAMPLES = 10000};
+
+    enum { NUM_SAMPLES = 10000};*/
     vector<Vector3<float>> merge;
     vector<vector<Vector3<float>>> sampleSet;
     unique_ptr<BSplineCurveFit<float>> mSpline = nullptr;
@@ -53,4 +56,7 @@ private:
     float minErrorThreshold = 0.0f;
     //float diagonal= 0.0f;
     vector<int *> connection;
+    static vector<vector<vector<Vector3<float>>>> IndexingCP;
+    static vector<vector<vector<Vector3<float>>>> IndexingCP_Interactive;
+    
 };
