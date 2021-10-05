@@ -27,10 +27,12 @@ public:
     void indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index);
 
     vector<vector<Vector3<float>>> SplineGenerate();
+	vector<Vector3<float>> ReadIndexingSpline(vector<vector<Vector3<float>>> cpList);
     vector<vector<Vector3<float>>> ReadIndexingSpline();
     inline void clear_IndexingCP() {if(!IndexingCP.empty()) IndexingCP.clear();}
     inline void clear_IndexingCP_Interactive() 
     { if(!IndexingCP_Interactive.empty()) IndexingCP_Interactive.clear(); }
+    inline vector<vector<vector<Vector3<float>>>> get_indexingCP() {return IndexingCP;}
 private:
     
     void CreateBSplinePolyline(vector<Vector3<float>> Sample);

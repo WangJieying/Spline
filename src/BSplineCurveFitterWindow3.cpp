@@ -112,7 +112,7 @@ vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::SplineGenerate()
     vector<vector<Vector3<float>>> ReadingCPforEachInty, ReadingSampleforAllInty;
     vector<Vector3<float>> ReadingCPforEachBranch;
     Vector3<float> ReadingEachCP;
-    
+     
     for(auto it = IndexingCP_Interactive.begin();it!=IndexingCP_Interactive.end();it++){
         ReadingCPforEachInty = *it;
         //cout<<"ReadingCPforEachInty size "<<ReadingCPforEachInty.size()<<endl;
@@ -147,6 +147,46 @@ vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::SplineGenerate()
     return ReadingSampleforAllInty;   
 }
 
+
+vector<Vector3<float>> BSplineCurveFitterWindow3::ReadIndexingSpline(vector<vector<Vector3<float>>> cpList)
+{
+    int CPnum,degree;
+    unsigned int numSamples;
+    vector<float> mControlData;
+
+    vector<Vector3<float>> ReadingCPforEachBranch;
+    Vector3<float> ReadingEachCP;
+    if(!ReadingSampleforEachCC.empty()) ReadingSampleforEachCC.clear();
+    
+    for(auto it_ = cpList.begin();it_!=cpList.end();it_++){
+        ReadingCPforEachBranch = *it_;
+        bool first = true;
+        for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
+            ReadingEachCP = *it_branch;
+            if(first){
+                first = false;
+                CPnum = ReadingEachCP[0];
+                degree = ReadingEachCP[1];
+                numSamples = ReadingEachCP[2];
+            }
+            else{
+                for (int j = 0; j < mDimension; ++j)
+                {
+                    mControlData.push_back(ReadingEachCP[j]/diagonal);
+                }
+
+            }
+        }
+        SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
+        
+        CreateGraphics(numSamples, 1);
+        mControlData.clear(); 
+
+    }
+        
+    return ReadingSampleforEachCC;   
+}
+
 vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::ReadIndexingSpline()
 {
     int CPnum,degree;
@@ -157,6 +197,8 @@ vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::ReadIndexingSpline()
     vector<vector<Vector3<float>>> ReadingCPforEachCC, ReadingSampleforAllCC;
     vector<Vector3<float>> ReadingCPforEachBranch;
     Vector3<float> ReadingEachCP;
+    if(!ReadingSampleforEachCC.empty()) ReadingSampleforEachCC.clear();
+    
     
     for(auto it = IndexingCP.begin();it!=IndexingCP.end();it++){
         ReadingCPforEachCC = *it;
