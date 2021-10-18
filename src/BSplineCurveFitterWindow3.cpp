@@ -13,12 +13,12 @@
 #include <string>
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
-  
  
 using namespace std;
 #define mDimension 3
- 
-int TotalControlNum; 
+
+float *smd_ = nullptr;
+int TotalControlNum, width_, TotalTriple; 
 int DeterminedNumControls, DeterminedDegree;
 float minError;
 float minErrorThreshold;
@@ -31,9 +31,9 @@ vector<Vector3<float>> ReadingSampleforEachInty = {{}};
 vector<vector<Vector3<float>>> CPforEachLayer_or_CC = {{}};
 
 unique_ptr<BSplineCurveGenerate<float>> SplineGeneratePtr;
-bool mergeOrNot = false;   
+//bool mergeOrNot = true;   
 bool deleteshort = false;
-unsigned int MinAllowableLength = 5;
+unsigned int MinAllowableLength = 4;
 float diagonal= 0.0f;
 
 BSplineCurveFitterWindow3::BSplineCurveFitterWindow3()
@@ -48,7 +48,7 @@ int BSplineCurveFitterWindow3::SplineFit(vector<vector<Vector3<float>>> BranchSe
     minErrorThreshold = hausdorff_;
     diagonal = diagonal_;
     connection = connection_;
-    
+    bool mergeOrNot = false; 
     if (mergeOrNot) {Merge();}
 
     for (unsigned int i = 0; i < sampleSet.size();i++)
@@ -60,13 +60,17 @@ int BSplineCurveFitterWindow3::SplineFit(vector<vector<Vector3<float>>> BranchSe
     return TotalControlNum; 
 }
 
-void BSplineCurveFitterWindow3::SplineFit2(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, vector<int *> connection_, int sign)
+int BSplineCurveFitterWindow3::SplineFit2(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,
+float diagonal_, int width, vector<int *> connection_, bool mergeOrNot, float *smd)
 {
+    TotalTriple = 0;
     if(!sampleSet.empty()) sampleSet.clear();
     sampleSet = BranchSet;
     minErrorThreshold = hausdorff_;
     diagonal = diagonal_;
     connection = connection_; 
+    width_ = width;
+    smd_ = smd;
     
     if (mergeOrNot) { Merge();}
     if(!CPforEachLayer_or_CC.empty()) CPforEachLayer_or_CC.clear();
@@ -78,8 +82,9 @@ void BSplineCurveFitterWindow3::SplineFit2(vector<vector<Vector3<float>>> Branch
         }
     }
     IndexingCP_Interactive.push_back(CPforEachLayer_or_CC);
-    //CPforEachLayer_or_CC.clear();
-    
+    smd_= nullptr;
+    return TotalTriple;
+    //cout<<"TotalTriple: "<<TotalTriple<<endl;
 }
 
 void BSplineCurveFitterWindow3::indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index)
@@ -267,6 +272,7 @@ float BSplineCurveFitterWindow3::Judge(vector<Vector3<float>> Sample)
     vector<Vector3<float>> SplineSamples(10000);
     
     float CPandError = 0;
+    float factor = 1.0;
     
     unsigned int numSplineSamples = (unsigned int)(numSamples * 1.4);
     //unsigned int numSplineSamples = numSamples; // uniform sampling.
@@ -298,6 +304,7 @@ float BSplineCurveFitterWindow3::Judge(vector<Vector3<float>> Sample)
             float maxLength = 0.0f;
             Vector3<float> diff;
             float sqrLength, minLength;
+            float weight = 0.0;
             for (unsigned int i = 0; i < numSamples; ++i)
             {
                 minLength = 100.0f;
@@ -308,19 +315,25 @@ float BSplineCurveFitterWindow3::Judge(vector<Vector3<float>> Sample)
                     if (sqrLength < minLength) {minLength = sqrLength; if (minLength == 0) break;}
                 }
                 if (minLength > maxLength) maxLength = minLength;
-            
+                
+                if(smd_!= nullptr){
+                    int index = (int)(Sample[i][1]*diagonal) * width_ + (int)(Sample[i][0]*diagonal);
+                    //cout<<Sample[i][0]<<"/ "<<Sample[i][1]<<" ";
+                    weight += pow(2, (smd_[index]/128.0 - 1.0));//from 1/3 to 3
+                }
             }
+            if(smd_!= nullptr) factor = weight/(float)numSamples; //saliency factor
             hausdorff = std::sqrt(maxLength);
             if (minError > hausdorff) { minError = hausdorff; minDegree = degree;}
             //cout<<numControls<<" hausdorff: "<<hausdorff<<" degree: "<<degree<<endl;
         }
         //cout<<numControls<<" minError: "<<minError<<" minDegree: "<<minDegree<<endl;
-        if (numControls > 12) //If numControl > 13, it's easy to get crush.
+        if (numControls > 15) 
         {
             CPandError = 100;//assign an big enough value
             return CPandError;
         }
-        if (minError < minErrorThreshold)
+        if (minError < (minErrorThreshold/factor))
         {
             DeterminedNumControls = numControls;
             DeterminedDegree = minDegree;
@@ -408,6 +421,7 @@ void BSplineCurveFitterWindow3::CreateBSplinePolyline(vector<Vector3<float>> Sam
         }    
         //cout<<"CPforEachLayer_or_CC.size "<<CPforEachLayer_or_CC.size()<<endl;
         CPforEachLayer_or_CC.push_back(CPforEachBranch);
+        TotalTriple += (DeterminedNumControls+1);
     }
 }
 
@@ -447,7 +461,7 @@ void BSplineCurveFitterWindow3::Merge()
                 else secondE = Judge(second);
             }
 
-            merge.resize(10000);//This is very important!!
+            merge.resize(10000);//very important!!
             for (unsigned int i = 0; i < first.size(); ++i)
                 merge[i] = first[i];
             
