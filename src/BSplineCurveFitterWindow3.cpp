@@ -319,7 +319,7 @@ float BSplineCurveFitterWindow3::Judge(vector<Vector3<float>> Sample)
                 if(smd_!= nullptr){
                     int index = (int)(Sample[i][1]*diagonal) * width_ + (int)(Sample[i][0]*diagonal);
                     //cout<<Sample[i][0]<<"/ "<<Sample[i][1]<<" ";
-                    weight += pow(2, (smd_[index]/128.0 - 1.0));//from 1/3 to 3
+                    weight += pow(2.0, (smd_[index]/255.0 - 1.0));//from 1/3 to 3
                 }
             }
             if(smd_!= nullptr) factor = weight/(float)numSamples; //saliency factor
