@@ -89,23 +89,29 @@ float diagonal_, int width, vector<int *> connection_, bool mergeOrNot, float *s
 
 void BSplineCurveFitterWindow3::indexingSpline(vector<vector<Vector3<float>>> BranchSet, float hausdorff_,float diagonal_, int layerNum, int index)
 {
-    
-    if(!sampleSet.empty()) sampleSet.clear();
-    sampleSet = BranchSet;
-    minErrorThreshold = hausdorff_;
-    diagonal = diagonal_;
-    
-    if(!CPforEachLayer_or_CC.empty()) CPforEachLayer_or_CC.clear();
-
-    for (unsigned int i = 0; i < sampleSet.size();i++)
-    {
-        if (sampleSet[i].size()>3){
-            CreateBSplinePolyline(sampleSet[i]);
-        } 
-            
+    if(BranchSet.empty()){
+        vector<vector<Vector3<float>>> empty_vector;
+        //cout<<"empty_vector: "<<empty_vector.empty()<<endl;
+        IndexingCP.push_back(empty_vector);
     }
-    IndexingCP.push_back(CPforEachLayer_or_CC);
-    
+    else{
+        if(!sampleSet.empty()) sampleSet.clear();
+        sampleSet = BranchSet;
+        minErrorThreshold = hausdorff_;
+        diagonal = diagonal_;
+        
+        if(!CPforEachLayer_or_CC.empty()) CPforEachLayer_or_CC.clear();
+
+        for (unsigned int i = 0; i < sampleSet.size();i++)
+        {
+            if (sampleSet[i].size()>3){
+                CreateBSplinePolyline(sampleSet[i]);
+            }     
+        }
+        IndexingCP.push_back(CPforEachLayer_or_CC);
+        
+    }
+    //cout<<"IndexingCP.size(): "<<IndexingCP.size()<<endl;
 }
 
 vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::SplineGenerate()
@@ -206,36 +212,45 @@ vector<vector<Vector3<float>>> BSplineCurveFitterWindow3::ReadIndexingSpline()
     
     
     for(auto it = IndexingCP.begin();it!=IndexingCP.end();it++){
-        ReadingCPforEachCC = *it;
-        for(auto it_ = ReadingCPforEachCC.begin();it_!=ReadingCPforEachCC.end();it_++){
-            ReadingCPforEachBranch = *it_;
-            bool first = true;
-            for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
-                ReadingEachCP = *it_branch;
-                if(first){
-                    first = false;
-                    CPnum = ReadingEachCP[0];
-                    degree = ReadingEachCP[1];
-                    numSamples = ReadingEachCP[2];
-                }
-                else{
-                    for (int j = 0; j < mDimension; ++j)
-                    {
-                        mControlData.push_back(ReadingEachCP[j]/diagonal);
-                    }
-
-                }
-            }
-            SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
-           
-            CreateGraphics(numSamples, 1);
-            mControlData.clear(); 
-
+        //cout<<"(*it).empty(): "<<(*it).empty()<<endl;
+        if((*it).empty()){
+            vector<Vector3<float>> empty_sample;
+            ReadingSampleforAllCC.push_back(empty_sample);
         }
-        //OutFile << 65535 <<endl;
-        ReadingSampleforAllCC.push_back(ReadingSampleforEachCC);
-        ReadingSampleforEachCC.clear();
+        else{
+            ReadingCPforEachCC = *it;
+            for(auto it_ = ReadingCPforEachCC.begin();it_!=ReadingCPforEachCC.end();it_++){
+                ReadingCPforEachBranch = *it_;
+                bool first = true;
+                for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
+                    ReadingEachCP = *it_branch;
+                    if(first){
+                        first = false;
+                        CPnum = ReadingEachCP[0];
+                        degree = ReadingEachCP[1];
+                        numSamples = ReadingEachCP[2];
+                    }
+                    else{
+                        for (int j = 0; j < mDimension; ++j)
+                        {
+                            mControlData.push_back(ReadingEachCP[j]/diagonal);
+                        }
+
+                    }
+                }
+                SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
+            
+                CreateGraphics(numSamples, 1);
+                mControlData.clear(); 
+
+            }
+            //OutFile << 65535 <<endl;
+            ReadingSampleforAllCC.push_back(ReadingSampleforEachCC);
+            ReadingSampleforEachCC.clear();
+        }
+        
     }
+
     return ReadingSampleforAllCC;        
     
 }
