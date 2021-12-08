@@ -170,29 +170,30 @@ vector<Vector3<float>> BSplineCurveFitterWindow3::ReadIndexingSpline(vector<vect
     if(!ReadingSampleforEachCC.empty()) ReadingSampleforEachCC.clear();
     
     for(auto it_ = cpList.begin();it_!=cpList.end();it_++){
-        ReadingCPforEachBranch = *it_;
-        bool first = true;
-        for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
-            ReadingEachCP = *it_branch;
-            if(first){
-                first = false;
-                CPnum = ReadingEachCP[0];
-                degree = ReadingEachCP[1];
-                numSamples = ReadingEachCP[2];
-            }
-            else{
-                for (int j = 0; j < mDimension; ++j)
-                {
-                    mControlData.push_back(ReadingEachCP[j]/diagonal);
+        if(!(*it_).empty()){
+            ReadingCPforEachBranch = *it_;
+            bool first = true;
+            for(auto it_branch = ReadingCPforEachBranch.begin(); it_branch != ReadingCPforEachBranch.end(); it_branch++){
+                ReadingEachCP = *it_branch;
+                if(first){
+                    first = false;
+                    CPnum = ReadingEachCP[0];
+                    degree = ReadingEachCP[1];
+                    numSamples = ReadingEachCP[2];
                 }
+                else{
+                    for (int j = 0; j < mDimension; ++j)
+                    {
+                        mControlData.push_back(ReadingEachCP[j]/diagonal);
+                    }
 
+                }
             }
+            SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
+            
+            CreateGraphics(numSamples, 1);
+            mControlData.clear(); 
         }
-        SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
-        
-        CreateGraphics(numSamples, 1);
-        mControlData.clear(); 
-
     }
         
     return ReadingSampleforEachCC;   
