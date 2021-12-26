@@ -182,17 +182,22 @@ vector<Vector3<float>> BSplineCurveFitterWindow3::ReadIndexingSpline(vector<vect
                     numSamples = ReadingEachCP[2];
                 }
                 else{
-                    for (int j = 0; j < mDimension; ++j)
-                    {
-                        mControlData.push_back(ReadingEachCP[j]/diagonal);
+                    if(CPnum > 1){
+                        for (int j = 0; j < mDimension; ++j)
+                        {
+                            mControlData.push_back(ReadingEachCP[j]/diagonal);
+                        }
                     }
-
                 }
             }
-            SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
-            
-            CreateGraphics(numSamples, 1);
-            mControlData.clear(); 
+
+            if(CPnum == 1)
+                ReadingSampleforEachCC.push_back(ReadingEachCP);
+            else{
+                SplineGeneratePtr = std::make_unique<BSplineCurveGenerate<float>>(mDimension, degree, mControlData, CPnum);
+                CreateGraphics(numSamples, 1);
+                mControlData.clear();
+            }  
         }
     }
         
