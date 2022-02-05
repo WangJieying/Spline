@@ -15,6 +15,7 @@ class Spline(ConanFile):
     self.copy("CMakeLists.txt", src="src", dst="src")
     self.copy("*.hpp", dst="include", src="include")
     self.copy("*.h", dst="include", src="include")
+    self.copy("*.h", dst="include", src="include_")
 
   def build(self):
     cmake = CMake(self)
@@ -24,6 +25,7 @@ class Spline(ConanFile):
   def package(self):
     self.copy("*.h", dst="include", src="include")
     self.copy("*.hpp", dst="include", src="include")
+    self.copy("*.h", dst="include", src="include_")
     self.copy("*.lib", dst="lib", keep_path=False)
     self.copy("*.dll", dst="bin", keep_path=False)
     self.copy("*.dylib", dst="lib", keep_path=False)

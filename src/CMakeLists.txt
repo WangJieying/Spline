@@ -7,8 +7,7 @@ project(Spline CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# include CUDA directories
-include_directories(../include)
+include_directories(../include ../include_)
 
 # include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 # conan_basic_setup()
